@@ -95,7 +95,7 @@ $ yandex-tank -o "influx.tank_tag=SomeTag"
 23:12:11 [INFO] Close allocated resources...
 23:12:11 [INFO] Done performing test with code 1
 ```
-### After test metrics appears in InfluxDB. Now you can improve your LoadTest dashboard.
-### That ugly hack works well with CI automation, especially inside Docker image e.g. Gitlab-CI pipelines.
+##### After test metrics appears in InfluxDB. Now you can improve your LoadTest dashboard.
+##### That ugly hack works well with CI automation, especially inside Docker image e.g. Gitlab-CI pipelines.
 
 ### Enjoy!
