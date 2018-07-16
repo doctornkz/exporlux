@@ -1,0 +1,32 @@
+influx:
+  enabled: true
+  package: yandextank.plugins.Influx
+  address: example.com
+  port: 8086
+  database: mydatabase
+  password: mypassword
+  username: myusername
+  grafana_root: http://localhost/
+  grafana_dashboard: myservice
+
+phantom:
+  address: nginx:80
+  load_profile:
+    load_type: rps
+    schedule: line(1,100,10m)
+  instances: 10
+  ammofile: ammo.txt
+  timeout: 1m
+  header_http: "1.1"
+
+autostop:
+  autostop:
+    - http(5xx,10%,20s)
+
+telegraf:
+  enabled: false
+
+console:
+  enabled: true
+  short_only: true
+
