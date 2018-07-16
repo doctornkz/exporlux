@@ -3,24 +3,29 @@ package main
 import (
 	"bufio"
 	"errors"
-	"fmt"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"net/url"
+	"os"
 	"regexp"
 	"strconv"
 	"strings"
 	"time"
-	// Influx client
-	client "github.com/influxdata/influxdb/client/v2"
 	// YAML Formatter
 	"gopkg.in/yaml.v2"
+
+	// Cool logger && nice textFormat wrapper
+	"github.com/sirupsen/logrus"
+	easy "github.com/t-tomalak/logrus-easy-formatter"
+
+	// Influx client
+	client "github.com/influxdata/influxdb/client/v2"
 )
 
 var (
 	err error
 	u   *url.URL
+	log *logrus.Logger
 )
 
 type metrics struct {
@@ -40,6 +45,10 @@ type LoadYAML struct {
 	Phantom struct {
 		Address string `yaml:"address"`
 		Port    int    `yaml:"port"`
+	}
+	Console struct {
+		Enabled   bool `yaml:"enabled"`
+		ShortOnly bool `yaml:"short_only"`
 	}
 }
 
@@ -68,28 +77,41 @@ var config = struct {
 }
 
 const (
-	exporterPort = "1957"
+	exporterPort       = "1957"
+	loadYAMLfilename   = "load.yaml"
+	monitoringInterval = 5 * time.Second
 )
 
 func init() {
+	log = logrus.New()
+
+	// 22:06:19 [INFO] Plugin <yandextank.plugins.Autostop.plugin.Plugin object at 0x7f0533efee90> required 0.000025 seconds to start
+	log.Formatter = &easy.Formatter{
+		TimestampFormat: "15:04:05",
+		LogFormat:       "%time% [%lvl%] %msg%\n",
+	}
+
+	log.SetLevel(logrus.DebugLevel)
+
 	// Reading load config
-	yamlFile, err := ioutil.ReadFile("load.yaml.example")
+	yamlFile, err := ioutil.ReadFile(loadYAMLfilename)
 	check(err)
 	err = yaml.Unmarshal(yamlFile, &config.conf)
 	check(err)
-	fmt.Printf("Config from load.yaml: %#v\r\n", config.conf)
-
+	log.Printf("Config file %s found", loadYAMLfilename)
+	log.Printf("Influx settings: %v ", config.conf.Influx)
+	log.Printf("Exporter settings: %v ", config.conf.Phantom)
 	// Exporter configuration
 	// Parse ip:port, [ip]:port, ip:*** port:***, (IPv4 Only)
 	config.urlExporter = "http://" + phantomToExporter(config.conf.Phantom.Address) + ":" + exporterPort
-	fmt.Printf("Exporter: %v\n", config.urlExporter)
+	log.Printf("Exporter: %v", config.urlExporter)
 
 	// Influx configuration
 	//http://localhost:8086
 	config.urlInflux = "http://" +
 		config.conf.Influx.Address + ":" +
 		strconv.Itoa(config.conf.Influx.Port)
-	fmt.Printf("Influx backend: %v\n", config.urlInflux)
+	log.Printf("Influx backend: %v", config.urlInflux)
 
 }
 
@@ -108,18 +130,18 @@ func main() {
 	for {
 		batch, err := metricReader()
 		check(err)
-		tm := time.Now().UnixNano() / 1000000
-		log.Printf("Timestamp > %d, time Now > %d\n", batch.timestamp, tm)
-		log.Printf("Metrics received... ")
+		// log.Printf("Metrics received... ")
 		err = influxUploader(batch)
 		check(err)
-		log.Println("Metrics sent...")
-		time.Sleep(5 * time.Second)
+		if config.conf.Console.Enabled && config.conf.Console.ShortOnly {
+			log.Printf("Metrics successfully sent from node %s to influx %s", config.conf.Phantom.Address, config.conf.Influx.Address)
+		}
+		time.Sleep(monitoringInterval)
 	}
 }
 
 func influxUploader(b metrics) error {
-	startTime := time.Now()
+	//startTime := time.Now()
 
 	// Create a new HTTPClient
 	c, err := client.NewHTTPClient(client.HTTPConfig{
@@ -138,7 +160,7 @@ func influxUploader(b metrics) error {
 	check(err)
 
 	// TODO: Make configurable
-	tags := map[string]string{"cpu": "cpu-total"}
+	tags := map[string]string{"system": "common"}
 
 	pt, err := client.NewPoint("monitoring", tags, b.metric, time.Unix(b.timestamp, 0))
 	check(err)
@@ -152,7 +174,7 @@ func influxUploader(b metrics) error {
 	err = c.Close()
 	check(err)
 
-	log.Printf("metricWriter, %f ms", timeSpent(startTime))
+	//log.Printf("metricWriter, %f ms", timeSpent(startTime))
 	return nil
 }
 
@@ -160,12 +182,14 @@ func check(err error) {
 	startTime := time.Now()
 	if err != nil {
 		log.Printf("check, %f ms", timeSpent(startTime))
-		log.Panicf("Error: %v", err)
+		log.Printf("Error: %v, gracefull exit", err)
+		log.Printf("Gracefull exit")
+		os.Exit(0)
 	}
 }
 
 func metricReader() (metrics, error) {
-	startTime := time.Now()
+	//startTime := time.Now()
 	var b metrics
 	mtrmap := make(map[string]interface{})
 	// Metrics to regexp:
@@ -205,7 +229,11 @@ func metricReader() (metrics, error) {
 
 	err = scanner.Err()
 	check(err)
-	log.Printf("metricReader, %f ms", timeSpent(startTime))
+	// log.Printf("metricReader, %f ms", timeSpent(startTime))
+	if b.timestamp == 0 {
+		return b, errors.New("Zero timestamp. Check exporter version")
+	}
+
 	return b, nil
 }
 
