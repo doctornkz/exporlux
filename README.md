@@ -1,5 +1,6 @@
-# Exporlux - simple metrics converter from pull-based Prometheus node_exporter to InfluxDB storage
-#### Extremely usefull with Yandex-Tank collaboration
+# Exporlux 
+### Simple metrics pull-based Prometheus fetcher
+#### Extremely usefull with Yandex-Tank InfluxDB plugin
 
 ### How to use:
 #### Clone, change constants and compile:
@@ -10,22 +11,25 @@ vim main.go
 go build -o exporlux
 ```
 
-#### Save file to YandexTank reachable place:
+#### Save file to reachable for YandeTank place:
 ```
 cp exporlux /tmp
 ```
-Add section to your yaml.load config:
+
+#### Add section to your yaml.load config:
 ```
 shellexec:
   start: /tmp/exporlux &
   end: pkill exporlux
 ```
-Note: Exporlux console logging apears only in `short_only` Yandex-Tank console settings.
 
-After start exporlux will parse your load.yaml, sections `influx` , `phantom` and uses settings for workload.
-Note: If something goes wrong, exporlux will be closed with `os.Exit(0)`. 
+Note #1: Exporlux console logging works only with `short_only` Yandex-Tank console settings.
+Note #2: If something goes wrong, exporlux will be closed with `os.Exit(0)`. 
 
 #### Running:
+
+After start exporlux will parse your load.yaml, sections `influx` , `phantom` and uses settings for workload.
+
 ```
 $ yandex-tank -o "influx.tank_tag=SomeTag"
 23:08:15 [INFO] Loading plugins...
