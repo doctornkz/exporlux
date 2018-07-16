@@ -23,8 +23,8 @@ shellexec:
   end: pkill exporlux
 ```
 
-Note #1: Exporlux console logging works only with `short_only` Yandex-Tank console settings.
-Note #2: If something goes wrong, exporlux will be closed with `os.Exit(0)`. 
+##### Note #1: Exporlux console logging works only with `short_only` Yandex-Tank console settings.
+##### Note #2: If something goes wrong, exporlux will be closed with `os.Exit(0)`. 
 
 #### Running:
 
