@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"errors"
+	"flag"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -77,12 +78,14 @@ var config = struct {
 }
 
 const (
-	exporterPort       = "1957"
 	loadYAMLfilename   = "load.yaml"
 	monitoringInterval = 5 * time.Second
 )
 
 func init() {
+	cmdExpPort := flag.String("port", "1957", "Exporter's port")
+	flag.Parse()
+	exporterPort := *cmdExpPort
 	log = logrus.New()
 
 	// 22:06:19 [INFO] Plugin <yandextank.plugins.Autostop.plugin.Plugin object at 0x7f0533efee90> required 0.000025 seconds to start

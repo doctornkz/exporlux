@@ -30,3 +30,6 @@ console:
   enabled: true
   short_only: true
 
+shellexec:
+  start: /tmp/exporlux --port=1959 &
+  end: pkill exporlux
