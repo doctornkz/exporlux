@@ -59,6 +59,10 @@ var config = struct {
 	picks       []string
 	urlExporter string
 	urlInflux   string
+	cmdExpPort  *string
+	cmdExpHost  *string
+	cmdInflPort *string
+	cmdInflHost *string
 }{
 	timeKey: []string{"time"},
 	picks: []string{
@@ -83,12 +87,14 @@ const (
 )
 
 func init() {
-	cmdExpPort := flag.String("port", "1957", "Exporter's port")
+	// Command-line parameters processing
+	config.cmdExpHost = flag.String("ehost", "", "Exporter host")
+	config.cmdExpPort = flag.String("eport", "", "Exporter port")
 	flag.Parse()
-	exporterPort := *cmdExpPort
-	log = logrus.New()
+	// TODO: Move that to function
+	// TODO: -c parameter (exporlux's config parsing)
 
-	// 22:06:19 [INFO] Plugin <yandextank.plugins.Autostop.plugin.Plugin object at 0x7f0533efee90> required 0.000025 seconds to start
+	log = logrus.New()
 	log.Formatter = &easy.Formatter{
 		TimestampFormat: "15:04:05",
 		LogFormat:       "%time% [%lvl%] %msg%\n",
@@ -102,11 +108,27 @@ func init() {
 	err = yaml.Unmarshal(yamlFile, &config.conf)
 	check(err)
 	log.Printf("Config file %s found", loadYAMLfilename)
+	log.Printf("Parameters from command-line processin")
 	log.Printf("Influx settings: %v ", config.conf.Influx)
-	log.Printf("Exporter settings: %v ", config.conf.Phantom)
+
+	// TODO: Move it to struct type. Overloaded!
 	// Exporter configuration
-	// Parse ip:port, [ip]:port, ip:*** port:***, (IPv4 Only)
-	config.urlExporter = "http://" + phantomToExporter(config.conf.Phantom.Address) + ":" + exporterPort
+	var ehost string
+	if *config.cmdExpHost != "" {
+		ehost = *config.cmdExpHost
+	} else {
+		// Host splitted from Host:IP phantom configuration
+		ehost = phantomToExporter(config.conf.Phantom.Address)
+	}
+
+	var eport string
+	if *config.cmdExpPort != "" {
+		eport = *config.cmdExpPort
+	} else {
+		eport = "1957" // Default USSD port
+	}
+	log.Printf("Exporter settings: %v ", config.conf.Phantom)
+	config.urlExporter = "http://" + ehost + ":" + eport
 	log.Printf("Exporter: %v", config.urlExporter)
 
 	// Influx configuration
@@ -115,7 +137,6 @@ func init() {
 		config.conf.Influx.Address + ":" +
 		strconv.Itoa(config.conf.Influx.Port)
 	log.Printf("Influx backend: %v", config.urlInflux)
-
 }
 
 func phantomToExporter(ph string) string {
@@ -133,11 +154,11 @@ func main() {
 	for {
 		batch, err := metricReader()
 		check(err)
-		// log.Printf("Metrics received... ")
+		log.Printf("Metrics received... ")
 		err = influxUploader(batch)
 		check(err)
 		if config.conf.Console.Enabled && config.conf.Console.ShortOnly {
-			log.Printf("Metrics successfully sent from node %s to influx %s", config.conf.Phantom.Address, config.conf.Influx.Address)
+			log.Printf("Metrics successfully sent from node %s to influx %s", config.urlExporter, config.conf.Influx.Address)
 		}
 		time.Sleep(monitoringInterval)
 	}
@@ -232,11 +253,10 @@ func metricReader() (metrics, error) {
 
 	err = scanner.Err()
 	check(err)
-	// log.Printf("metricReader, %f ms", timeSpent(startTime))
+	// if zero timestamp - sing local Unix time
 	if b.timestamp == 0 {
-		return b, errors.New("Zero timestamp. Check exporter version")
+		b.timestamp = time.Now().Unix()
 	}
-
 	return b, nil
 }
 
