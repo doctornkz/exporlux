@@ -253,7 +253,7 @@ func metricReader() (metrics, error) {
 
 	err = scanner.Err()
 	check(err)
-	// if zero timestamp - sing local Unix time
+	// if zero timestamp - using local Unix time
 	if b.timestamp == 0 {
 		b.timestamp = time.Now().Unix()
 	}
