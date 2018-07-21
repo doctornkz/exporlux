@@ -42,6 +42,7 @@ type LoadYAML struct {
 		Database string `yaml:"database"`
 		Address  string `yaml:"address"`
 		Port     int    `yaml:"port"`
+		TankTag  string `yaml:"tank_tag"`
 	}
 	Phantom struct {
 		Address string `yaml:"address"`
@@ -184,7 +185,7 @@ func influxUploader(b metrics) error {
 	check(err)
 
 	// TODO: Make configurable
-	tags := map[string]string{"system": "common"}
+	tags := map[string]string{"tank": config.conf.Influx.TankTag}
 
 	pt, err := client.NewPoint("monitoring", tags, b.metric, time.Unix(b.timestamp, 0))
 	check(err)
